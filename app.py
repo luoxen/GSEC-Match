@@ -6,6 +6,7 @@
 import streamlit as st
 from PIL import Image
 import os
+import base64
 
 # 页面配置
 st.set_page_config(
@@ -73,26 +74,26 @@ def load_css():
     </style>
     """, unsafe_allow_html=True)
 
+def get_logo_html():
+    """获取会标图片的HTML"""
+    logo_path = "/Users/Admin/Documents/运动营养+抗衰老/中考体育/学会会标.png"
+    try:
+        if os.path.exists(logo_path):
+            with open(logo_path, "rb") as img_file:
+                img_data = base64.b64encode(img_file.read()).decode()
+            return f'<img src="data:image/png;base64,{img_data}" style="height:50px; vertical-align:middle; margin-right:10px;">'
+        else:
+            return '<span style="font-size:40px; vertical-align:middle; margin-right:10px;">🏛️</span>'
+    except Exception:
+        return '<span style="font-size:40px; vertical-align:middle; margin-right:10px;">🏛️</span>'
+
 def main():
     load_css()
     
-    # 显示学会会标和标题在同一行
-    logo_path = "/Users/Admin/Documents/运动营养+抗衰老/中考体育/学会会标.png"
+    # 获取会标HTML
+    logo_html = get_logo_html()
     
-    # 使用HTML让图片和标题在同一行
-    logo_html = ""
-    try:
-        if os.path.exists(logo_path):
-            import base64
-            with open(logo_path, "rb") as img_file:
-                img_data = base64.b64encode(img_file.read()).decode()
-            logo_html = f'<img src="data:image/png;base64,{img_data}" style="height:60px; vertical-align:middle; margin-right:10px;">'
-        else:
-            logo_html = '<span style="font-size:40px; vertical-align:middle; margin-right:10px;">🏛️</span>'
-    except Exception:
-        logo_html = '<span style="font-size:40px; vertical-align:middle; margin-right:10px;">🏛️</span>'
-    
-    # 标题和图标在同一行
+    # 显示标题和会标在同一行
     st.markdown(f"""
     <div style="text-align: center; padding: 10px;">
         {logo_html}
@@ -103,8 +104,14 @@ def main():
     # 副标题居中
     st.markdown("<h3 style='text-align: center;'>广州中考体育教练精准匹配平台</h3>", unsafe_allow_html=True)
     
-    # 侧边栏导航
-    st.sidebar.title("🏛️ 广东省体质健康管理学会")
+    # 侧边栏导航 - 也加上会标
+    st.sidebar.markdown(f"""
+    <div style="text-align: center; padding: 10px;">
+        {logo_html}
+        <br>
+        <span style="font-size: 1.2rem; font-weight: bold; color: #1f77b4;">广东省体质健康管理学会</span>
+    </div>
+    """, unsafe_allow_html=True)
     st.sidebar.markdown("---")
     
     menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心", "⚙️ 管理员"]
