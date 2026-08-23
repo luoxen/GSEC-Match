@@ -180,10 +180,9 @@ def main():
             logout()
             st.rerun()
     else:
-        # 显示可点击的登录按钮
-        st.sidebar.info("🔐 未登录")
+        # 显示可点击的登录按钮 - 改为"管理员登录"
+        st.sidebar.info("🔐 管理员登录")
         if st.sidebar.button("📱 点击登录", use_container_width=True):
-            # 切换到个人中心页面
             st.session_state.page = "个人中心"
             st.rerun()
         st.sidebar.caption("💡 点击上方按钮进入登录页面")
