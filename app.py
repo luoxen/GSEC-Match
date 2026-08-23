@@ -80,6 +80,20 @@ def load_css():
         max-width: 400px;
         margin: 0 auto;
     }
+    .sidebar-login-btn {
+        width: 100%;
+        padding: 0.5rem;
+        background-color: #1f77b4;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        text-align: center;
+        font-weight: bold;
+    }
+    .sidebar-login-btn:hover {
+        background-color: #155a8a;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -158,14 +172,21 @@ def main():
         # 普通用户：不显示管理员菜单
         menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心"]
     
-    # 登录状态显示
+    # ========== 登录状态显示（带可点击的登录按钮） ==========
+    st.sidebar.markdown("---")
     if is_logged_in():
         st.sidebar.success(f"✅ 已登录: {st.session_state.username}")
-        if st.sidebar.button("🚪 登出"):
+        if st.sidebar.button("🚪 登出", use_container_width=True):
             logout()
             st.rerun()
     else:
+        # 显示可点击的登录按钮
         st.sidebar.info("🔐 未登录")
+        if st.sidebar.button("📱 点击登录", use_container_width=True):
+            # 切换到个人中心页面
+            st.session_state.page = "个人中心"
+            st.rerun()
+        st.sidebar.caption("💡 点击上方按钮进入登录页面")
     
     st.sidebar.markdown("---")
     
