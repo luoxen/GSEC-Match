@@ -112,7 +112,7 @@ def get_logo_html():
         return '<span style="font-size:40px; vertical-align:middle; margin-right:10px;">🏛️</span>'
 
 def show_login():
-    """管理员登录界面"""
+    """管理员登录界面 - 直接验证"""
     st.markdown("### 🔐 管理员登录")
     
     with st.container():
@@ -125,11 +125,27 @@ def show_login():
             if submitted:
                 if username and password:
                     supabase = init_supabase()
-                    if supabase and login(supabase, username, password):
-                        st.success("✅ 登录成功！")
-                        st.rerun()
+                    if supabase:
+                        try:
+                            # 直接验证，不调用 login() 函数
+                            hashed = hashlib.sha256(password.encode()).hexdigest()
+                            response = supabase.table('users').select('*').eq('username', username).execute()
+                            users = response.data
+                            
+                            if users and users[0]['password_hash'] == hashed:
+                                user = users[0]
+                                st.session_state.logged_in = True
+                                st.session_state.user_role = user['role']
+                                st.session_state.user_id = user['id']
+                                st.session_state.username = user['username']
+                                st.success("✅ 登录成功！")
+                                st.rerun()
+                            else:
+                                st.error("❌ 用户名或密码错误")
+                        except Exception as e:
+                            st.error(f"登录失败: {e}")
                     else:
-                        st.error("❌ 用户名或密码错误")
+                        st.error("⚠️ 数据库连接失败")
                 else:
                     st.warning("请输入用户名和密码")
         st.markdown('</div>', unsafe_allow_html=True)
