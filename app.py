@@ -124,28 +124,36 @@ def show_login():
             
             if submitted:
                 if username and password:
-                    supabase = init_supabase()
-                    if supabase:
-                        try:
-                            # 直接验证，不调用 login() 函数
-                            hashed = hashlib.sha256(password.encode()).hexdigest()
-                            response = supabase.table('users').select('*').eq('username', username).execute()
-                            users = response.data
-                            
-                            if users and users[0]['password_hash'] == hashed:
-                                user = users[0]
-                                st.session_state.logged_in = True
-                                st.session_state.user_role = user['role']
-                                st.session_state.user_id = user['id']
-                                st.session_state.username = user['username']
-                                st.success("✅ 登录成功！")
-                                st.rerun()
-                            else:
-                                st.error("❌ 用户名或密码错误")
-                        except Exception as e:
-                            st.error(f"登录失败: {e}")
-                    else:
-                        st.error("⚠️ 数据库连接失败")
+                    try:
+                        # 直接创建 Supabase 客户端
+                        url = os.getenv("SUPABASE_URL")
+                        key = os.getenv("SUPABASE_KEY")
+                        
+                        if not url or not key:
+                            st.error("⚠️ 数据库配置缺失")
+                            return
+                        
+                        supabase = create_client(url, key)
+                        
+                        # 计算密码哈希
+                        hashed = hashlib.sha256(password.encode()).hexdigest()
+                        
+                        # 查询用户
+                        response = supabase.table('users').select('*').eq('username', username).execute()
+                        users = response.data
+                        
+                        if users and users[0]['password_hash'] == hashed:
+                            user = users[0]
+                            st.session_state.logged_in = True
+                            st.session_state.user_role = user['role']
+                            st.session_state.user_id = user['id']
+                            st.session_state.username = user['username']
+                            st.success("✅ 登录成功！")
+                            st.rerun()
+                        else:
+                            st.error("❌ 用户名或密码错误")
+                    except Exception as e:
+                        st.error(f"登录失败: {e}")
                 else:
                     st.warning("请输入用户名和密码")
         st.markdown('</div>', unsafe_allow_html=True)
