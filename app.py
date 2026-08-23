@@ -218,10 +218,12 @@ def main():
                 logout()
                 st.rerun()
         else:
+            # 先显示按钮
             if st.button("🔐 管理员登录", use_container_width=True):
                 st.query_params["page"] = "管理员"
                 st.rerun()
-            st.caption("💡 管理员请点击上方按钮登录")
+            # 再显示提示
+            st.info("💡 点击上方按钮登录")
         
         st.markdown("---")
         
