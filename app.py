@@ -182,15 +182,20 @@ def main():
     else:
         # 显示可点击的登录按钮 - 改为"管理员登录"
         st.sidebar.info("🔐 管理员登录")
+        # 使用 query_params 传递参数实现跳转
         if st.sidebar.button("📱 点击登录", use_container_width=True):
-            st.session_state.page = "个人中心"
+            st.query_params["page"] = "个人中心"
             st.rerun()
         st.sidebar.caption("💡 点击上方按钮进入登录页面")
     
     st.sidebar.markdown("---")
     
-    # 如果是管理员页面，检查登录状态
-    choice = st.sidebar.radio("导航菜单", menu)
+    # ========== 检查是否有页面跳转参数 ==========
+    # 如果 URL 参数中有 page=个人中心，则自动选择个人中心
+    if st.query_params.get("page") == "个人中心":
+        choice = "👤 个人中心"
+    else:
+        choice = st.sidebar.radio("导航菜单", menu)
     
     # 页面路由
     if choice == "🏠 首页":
