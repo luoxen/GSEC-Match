@@ -472,7 +472,7 @@ def show_match(supabase):
         st.info("💡 提示: 请确保已连接 Supabase 并添加了教练数据")
 
 def show_profile(supabase):
-    """个人中心 - 包含登录功能"""
+    """个人中心 - 包含登录功能（带调试信息）"""
     st.markdown("### 👤 个人中心")
     
     if is_logged_in():
@@ -501,9 +501,23 @@ def show_profile(supabase):
                 if username and password:
                     if supabase:
                         try:
+                            # 计算密码哈希
                             hashed = hashlib.sha256(password.encode()).hexdigest()
+                            
+                            # 调试信息
+                            st.write(f"🔍 输入密码: {password}")
+                            st.write(f"🔍 计算哈希: {hashed}")
+                            
+                            # 查询用户
                             response = supabase.table('users').select('*').eq('username', username).execute()
                             users = response.data
+                            
+                            # 调试信息
+                            st.write(f"🔍 查询结果: {users}")
+                            
+                            if users:
+                                st.write(f"🔍 数据库哈希: {users[0]['password_hash']}")
+                                st.write(f"🔍 是否匹配: {users[0]['password_hash'] == hashed}")
                             
                             if users and users[0]['password_hash'] == hashed:
                                 user = users[0]
@@ -517,6 +531,7 @@ def show_profile(supabase):
                                 st.error("❌ 用户名或密码错误")
                         except Exception as e:
                             st.error(f"登录失败: {e}")
+                            st.write(f"错误详情: {e}")
                     else:
                         st.error("⚠️ 数据库连接失败")
                 else:
