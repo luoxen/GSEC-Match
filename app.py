@@ -191,6 +191,14 @@ def main():
     # 副标题居中
     st.markdown("<h3 style='text-align: center;'>广州中考体育教练精准匹配平台</h3>", unsafe_allow_html=True)
     
+    # ========== 检查是否显示登录表单 ==========
+    if st.session_state.get("show_login", False):
+        show_login()
+        # 登录成功后清除状态
+        if is_logged_in():
+            st.session_state.show_login = False
+        return
+    
     # ========== 侧边栏 ==========
     with st.sidebar:
         # 会标
@@ -205,10 +213,8 @@ def main():
         
         # ========== 菜单定义 ==========
         if is_admin():
-            # 管理员：显示所有菜单（包含管理员）
             menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "⚙️ 管理员"]
         else:
-            # 普通用户：不显示管理员菜单
             menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练"]
         
         # ========== 登录状态显示 ==========
@@ -219,34 +225,21 @@ def main():
                 logout()
                 st.rerun()
         else:
-            # 使用 link_button 替代 button，不会被遮挡，直接跳转
-            if st.sidebar.link_button("🔐 管理员登录", "?page=管理员", use_container_width=True):
-                pass
+            # 使用 st.button 控制登录表单显示
+            if st.sidebar.button("🔐 管理员登录", use_container_width=True):
+                st.session_state.show_login = True
+                st.rerun()
             st.sidebar.info("💡 点击上方按钮登录")
         
         st.markdown("---")
         
         # ========== 菜单选择 ==========
-        # 检查 URL 参数，但菜单始终显示
-        page_param = st.query_params.get("page", "")
-        
-        # 如果有 page 参数且匹配菜单项，自动选中
-        if page_param == "管理员" and "⚙️ 管理员" in menu:
-            default_index = menu.index("⚙️ 管理员")
-        else:
-            default_index = 0
-        
-        # 使用 radio 显示菜单
         choice = st.radio(
             "📋 导航菜单",
             menu,
-            index=default_index,
+            index=0,
             key="main_navigation"
         )
-        
-        # 清除 URL 参数（避免刷新时卡在特定页面）
-        if page_param:
-            st.query_params.clear()
     
     # ========== 页面路由 ==========
     if choice == "🏠 首页":
@@ -261,7 +254,9 @@ def main():
         if is_admin():
             show_admin(supabase)
         else:
-            show_login()
+            # 如果未登录，显示登录表单
+            st.session_state.show_login = True
+            st.rerun()
     
     st.sidebar.markdown("---")
     st.sidebar.info("广东省体质健康管理学会 v1.0.0")
