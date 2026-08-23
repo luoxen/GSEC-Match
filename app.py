@@ -189,16 +189,26 @@ def main():
         st.markdown("---")
         
         # ========== 菜单选择 ==========
-        if st.query_params.get("page") == "管理员":
-            choice = "⚙️ 管理员"
+        # 检查 URL 参数，但菜单始终显示
+        page_param = st.query_params.get("page", "")
+        
+        # 如果有 page 参数且匹配菜单项，自动选中
+        if page_param == "管理员" and "⚙️ 管理员" in menu:
+            default_index = menu.index("⚙️ 管理员")
         else:
-            # 使用 st.radio 替代 st.selectbox 确保显示
-            choice = st.radio(
-                "📋 导航菜单",
-                menu,
-                index=0,
-                key="main_navigation"
-            )
+            default_index = 0
+        
+        # 使用 radio 显示菜单
+        choice = st.radio(
+            "📋 导航菜单",
+            menu,
+            index=default_index,
+            key="main_navigation"
+        )
+        
+        # 清除 URL 参数（避免刷新时卡在特定页面）
+        if page_param:
+            st.query_params.clear()
     
     # ========== 页面路由 ==========
     if choice == "🏠 首页":
