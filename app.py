@@ -161,6 +161,11 @@ def show_login():
                             st.session_state.user_role = user['role']
                             st.session_state.user_id = user['id']
                             st.session_state.username = user['username']
+                            # 登录成功后清除登录表单标记
+                            st.session_state.show_login = False
+                            # 如果是管理员，使用 session_state 标记，但不直接操作 radio 的 key
+                            if user['role'] == 'admin':
+                                st.session_state._admin_just_logged_in = True
                             st.success("✅ 登录成功！")
                             st.rerun()
                         else:
@@ -192,12 +197,15 @@ def main():
     st.markdown("<h3 style='text-align: center;'>广州中考体育教练精准匹配平台</h3>", unsafe_allow_html=True)
     
     # ========== 检查是否显示登录表单 ==========
+    # 只有未登录时才显示登录表单并return
     if st.session_state.get("show_login", False):
         show_login()
-        # 登录成功后清除状态
+        # 如果已登录，清除标记并继续渲染页面
         if is_logged_in():
             st.session_state.show_login = False
-        return
+        else:
+            # 未登录，只显示登录表单，不渲染其他内容
+            return
     
     # ========== 侧边栏 ==========
     with st.sidebar:
@@ -211,8 +219,7 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("---")
         
-        # ========== 菜单定义（始终显示所有菜单项） ==========
-        # 根据角色决定是否显示"管理员"菜单
+        # ========== 菜单定义 ==========
         if is_admin():
             menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "⚙️ 管理员"]
         else:
@@ -224,6 +231,10 @@ def main():
             st.sidebar.success(f"✅ 已登录: {st.session_state.username}")
             if st.sidebar.button("🚪 登出", use_container_width=True):
                 logout()
+                st.session_state.show_login = False
+                # 清除导航相关状态
+                if "_admin_just_logged_in" in st.session_state:
+                    del st.session_state._admin_just_logged_in
                 st.rerun()
         else:
             if st.sidebar.button("🔐 管理员登录", use_container_width=True):
@@ -234,10 +245,19 @@ def main():
         st.markdown("---")
         
         # ========== 菜单选择 ==========
+        # 使用临时变量判断默认选中项，不直接操作 radio 的 key
+        default_index = 0
+        # 检查是否是刚登录的管理员，如果是则默认选中"管理员"
+        if st.session_state.get("_admin_just_logged_in", False) and "⚙️ 管理员" in menu:
+            default_index = menu.index("⚙️ 管理员")
+            # 清除标记，避免下次刷新还选中管理员
+            st.session_state._admin_just_logged_in = False
+        
+        # 使用 key 时，通过 index 控制选中，不直接赋值 session_state
         choice = st.radio(
             "📋 导航菜单",
             menu,
-            index=0,
+            index=default_index,
             key="main_navigation"
         )
     
@@ -644,38 +664,70 @@ def show_admin(supabase):
     with tab4:
         st.markdown("#### 数据统计")
         
+        # 使用独立 try-except 保护每个统计查询，避免单表缺失导致整个页面崩溃
+        stats_data = {}
+        
+        # 统计教练
         try:
             coaches_count = supabase.table('coaches').select('*', count='exact').execute()
+            stats_data['教练'] = coaches_count.count
+        except Exception as e:
+            stats_data['教练'] = 0
+            st.warning("⚠️ 教练数据统计暂不可用")
+        
+        # 统计家长
+        try:
             parents_count = supabase.table('parents').select('*', count='exact').execute()
+            stats_data['家长'] = parents_count.count
+        except Exception as e:
+            stats_data['家长'] = 0
+            st.warning("⚠️ 家长数据统计暂不可用")
+        
+        # 统计匹配记录
+        try:
             matches_count = supabase.table('matches').select('*', count='exact').execute()
+            stats_data['匹配记录'] = matches_count.count
+        except Exception as e:
+            stats_data['匹配记录'] = 0
+            st.info("💡 匹配记录表尚未创建，请先创建 matches 表")
+        
+        # 统计支付记录
+        try:
             payments_count = supabase.table('payments').select('*', count='exact').execute()
+            stats_data['支付记录'] = payments_count.count
+        except Exception as e:
+            stats_data['支付记录'] = 0
+            st.info("💡 支付记录表尚未创建，请先创建 payments 表")
+        
+        # 统计评价
+        try:
             reviews_count = supabase.table('reviews').select('*', count='exact').execute()
-            
-            stats = {
-                '表名': ['教练', '家长', '匹配记录', '支付记录', '评价'],
-                '数量': [
-                    coaches_count.count,
-                    parents_count.count,
-                    matches_count.count,
-                    payments_count.count,
-                    reviews_count.count
-                ]
-            }
-            df_stats = pd.DataFrame(stats)
+            stats_data['评价'] = reviews_count.count
+        except Exception as e:
+            stats_data['评价'] = 0
+            st.info("💡 评价表尚未创建，请先创建 reviews 表")
+        
+        # 显示统计信息
+        if stats_data:
+            df_stats = pd.DataFrame({
+                '表名': list(stats_data.keys()),
+                '数量': list(stats_data.values())
+            })
             st.dataframe(df_stats, use_container_width=True)
-            
+        
+        # 按等级统计教练
+        try:
             level_response = supabase.table('coaches').select('level', 'status').execute()
             if level_response.data:
                 df_level = pd.DataFrame(level_response.data)
-                if 'level' in df_level.columns:
+                if 'level' in df_level.columns and not df_level.empty:
                     level_counts = df_level['level'].value_counts().reset_index()
                     level_counts.columns = ['等级', '数量']
                     st.markdown("---")
                     st.markdown("#### 教练等级分布")
                     st.dataframe(level_counts, use_container_width=True)
-                
         except Exception as e:
-            st.error(f"加载统计数据失败: {e}")
+            st.warning("⚠️ 教练等级分布统计暂不可用")
 
 if __name__ == "__main__":
     main()
