@@ -211,7 +211,8 @@ def main():
         """, unsafe_allow_html=True)
         st.markdown("---")
         
-        # ========== 菜单定义 ==========
+        # ========== 菜单定义（始终显示所有菜单项） ==========
+        # 根据角色决定是否显示"管理员"菜单
         if is_admin():
             menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "⚙️ 管理员"]
         else:
@@ -225,7 +226,6 @@ def main():
                 logout()
                 st.rerun()
         else:
-            # 使用 st.button 控制登录表单显示
             if st.sidebar.button("🔐 管理员登录", use_container_width=True):
                 st.session_state.show_login = True
                 st.rerun()
@@ -254,7 +254,6 @@ def main():
         if is_admin():
             show_admin(supabase)
         else:
-            # 如果未登录，显示登录表单
             st.session_state.show_login = True
             st.rerun()
     
