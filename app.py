@@ -16,10 +16,18 @@ from src.utils.auth import init_session_state, login, logout, is_admin, is_logge
 # 加载环境变量
 load_dotenv()
 
-# 初始化 Supabase 客户端
+# 初始化 Supabase 客户端 - 支持 Secrets 和环境变量
 def init_supabase():
-    url = os.getenv("SUPABASE_URL")
-    key = os.getenv("SUPABASE_KEY")
+    """初始化 Supabase 客户端 - 支持 Secrets 和环境变量"""
+    try:
+        # 优先从 st.secrets 读取（Streamlit Cloud）
+        url = st.secrets.get("SUPABASE_URL")
+        key = st.secrets.get("SUPABASE_KEY")
+    except:
+        # 从环境变量读取（本地开发）
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_KEY")
+    
     if not url or not key:
         st.warning("⚠️ 请配置 SUPABASE_URL 和 SUPABASE_KEY 环境变量")
         return None
@@ -125,9 +133,14 @@ def show_login():
             if submitted:
                 if username and password:
                     try:
-                        # 直接创建 Supabase 客户端
-                        url = os.getenv("SUPABASE_URL")
-                        key = os.getenv("SUPABASE_KEY")
+                        # 从 st.secrets 读取配置（Streamlit Cloud）
+                        try:
+                            url = st.secrets["SUPABASE_URL"]
+                            key = st.secrets["SUPABASE_KEY"]
+                        except:
+                            # 从环境变量读取（本地开发）
+                            url = os.getenv("SUPABASE_URL")
+                            key = os.getenv("SUPABASE_KEY")
                         
                         if not url or not key:
                             st.error("⚠️ 数据库配置缺失")
