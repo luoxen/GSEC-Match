@@ -219,12 +219,9 @@ def main():
                 logout()
                 st.rerun()
         else:
-            # 使用 columns 布局确保按钮显示
-            col1, col2 = st.sidebar.columns([1, 3])
-            with col2:
-                if st.button("🔐 管理员登录", use_container_width=True, key="admin_login_btn"):
-                    st.query_params["page"] = "管理员"
-                    st.rerun()
+            # 使用 link_button 替代 button，不会被遮挡，直接跳转
+            if st.sidebar.link_button("🔐 管理员登录", "?page=管理员", use_container_width=True):
+                pass
             st.sidebar.info("💡 点击上方按钮登录")
         
         st.markdown("---")
