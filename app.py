@@ -192,7 +192,8 @@ def main():
         if st.query_params.get("page") == "管理员":
             choice = "⚙️ 管理员"
         else:
-            choice = st.selectbox(
+            # 使用 st.radio 替代 st.selectbox 确保显示
+            choice = st.radio(
                 "📋 导航菜单",
                 menu,
                 index=0,
