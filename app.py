@@ -7,6 +7,7 @@ import streamlit as st
 from PIL import Image
 import os
 import base64
+import hashlib
 from supabase import create_client
 from dotenv import load_dotenv
 from src.utils.auth import init_session_state, login, logout, is_admin, is_logged_in
@@ -192,9 +193,8 @@ def main():
     st.sidebar.markdown("---")
     st.sidebar.info("广东省体质健康管理学会 v1.0.0")
 
-# ========== 其他函数保持不变 ==========
 def show_home():
-    # ... 首页内容 ...
+    """首页"""
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("📊 注册教练", "50+", delta="+5 本月")
@@ -229,28 +229,346 @@ def show_home():
         """)
 
 def show_coach_register(supabase):
-    # ... 教练注册代码（保持不变） ...
+    """教练注册 - 公开访问，不需要登录"""
     st.markdown("### 📝 教练注册")
-    # ... 完整代码 ...
+    
+    if supabase is None:
+        st.error("⚠️ 数据库未连接，请稍后重试")
+        return
+    
+    with st.form("coach_form"):
+        st.subheader("基本信息")
+        col1, col2 = st.columns(2)
+        with col1:
+            name = st.text_input("姓名*", placeholder="请输入真实姓名")
+            phone = st.text_input("手机号码*", placeholder="请输入手机号")
+            gender = st.selectbox("性别", ["男", "女"])
+        with col2:
+            age = st.number_input("年龄", min_value=18, max_value=65, value=25)
+            email = st.text_input("邮箱", placeholder="请输入邮箱地址")
+        
+        st.subheader("专业信息")
+        col1, col2 = st.columns(2)
+        with col1:
+            major = st.text_input("专业*", placeholder="体育教育/运动训练等")
+            school = st.text_input("毕业院校*", placeholder="请输入毕业院校")
+        with col2:
+            experience = st.selectbox("教学经验", ["1-3年", "3-5年", "5-10年", "10年以上"])
+            specialty = st.multiselect(
+                "擅长项目",
+                ["800米", "1000米", "立定跳远", "引体向上", "仰卧起坐", "跳绳", "实心球", "篮球", "足球", "排球"]
+            )
+        
+        st.subheader("教练等级")
+        level = st.selectbox(
+            "选择教练等级",
+            ["🥉 铜牌教练 (200元/课时)", "🥈 银牌教练 (300元/课时)", "🥇 金牌教练 (400元/课时)"]
+        )
+        
+        st.subheader("个人介绍")
+        bio = st.text_area("自我介绍", placeholder="请介绍您的教学经验和特长", height=150)
+        
+        st.subheader("可授课时间")
+        available_times = st.multiselect(
+            "选择可授课时段",
+            ["周六上午", "周六下午", "周日上午", "周日下午", "节假日", "晚间 (19:00-21:00)"]
+        )
+        
+        submitted = st.form_submit_button("提交注册")
+        
+        if submitted:
+            if not all([name, phone, major, school]):
+                st.error("请填写所有必填信息（带*号）")
+            else:
+                # 提取等级和价格
+                level_name = level.split()[0].replace("🥉", "").replace("🥈", "").replace("🥇", "").strip()
+                price = int(level.split("(")[1].split("元")[0])
+                
+                coach_data = {
+                    "name": name,
+                    "phone": phone,
+                    "gender": gender,
+                    "age": age,
+                    "email": email,
+                    "major": major,
+                    "school": school,
+                    "experience": experience,
+                    "specialty": ",".join(specialty),
+                    "level": level_name,
+                    "price": price,
+                    "bio": bio,
+                    "available_times": ",".join(available_times),
+                    "status": "待审核"
+                }
+                
+                try:
+                    response = supabase.table('coaches').insert(coach_data).execute()
+                    st.success("✅ 注册成功！请等待管理员审核")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"❌ 注册失败: {e}")
 
 def show_parent_register(supabase):
-    # ... 家长注册代码（保持不变） ...
+    """家长注册 - 公开访问，不需要登录"""
     st.markdown("### 👨‍👩‍👧 家长注册")
-    # ... 完整代码 ...
+    
+    if supabase is None:
+        st.error("⚠️ 数据库未连接，请稍后重试")
+        return
+    
+    with st.form("parent_form"):
+        st.subheader("👤 家长信息")
+        col1, col2 = st.columns(2)
+        with col1:
+            parent_name = st.text_input("家长姓名*", placeholder="请输入姓名")
+            parent_phone = st.text_input("家长手机号*", placeholder="请输入手机号")
+            parent_gender = st.selectbox("家长性别", ["男", "女"])
+        with col2:
+            parent_age = st.number_input("家长年龄", min_value=20, max_value=80, value=35)
+            parent_email = st.text_input("家长邮箱", placeholder="请输入邮箱")
+        
+        st.subheader("👦 孩子信息")
+        col1, col2 = st.columns(2)
+        with col1:
+            student_name = st.text_input("孩子姓名*", placeholder="请输入姓名")
+            student_gender = st.selectbox("孩子性别", ["男", "女"])
+            student_age = st.number_input("孩子年龄", min_value=10, max_value=18, value=15)
+        with col2:
+            student_grade = st.selectbox("年级", ["初一", "初二", "初三"])
+            district = st.selectbox("所在区", [
+                "越秀区", "海珠区", "荔湾区", "天河区", "白云区", 
+                "黄埔区", "番禺区", "花都区", "南沙区", "从化区", "增城区"
+            ])
+            school = st.text_input("所在学校*", placeholder="请输入学校名称")
+        
+        st.subheader("🏃 体育信息")
+        sports_interest = st.multiselect(
+            "体育爱好",
+            ["篮球", "足球", "游泳", "田径", "羽毛球", "乒乓球", "排球", "其他"]
+        )
+        weak_sports = st.multiselect(
+            "中考体育项目短板",
+            ["800米", "1000米", "立定跳远", "引体向上", "仰卧起坐", "跳绳", "实心球", "篮球", "足球", "排球"]
+        )
+        
+        st.subheader("🎯 训练需求")
+        training_goal = st.text_area("训练目标", placeholder="请描述您的训练目标", height=100)
+        preferred_time = st.multiselect(
+            "偏好训练时间",
+            ["周六上午", "周六下午", "周日上午", "周日下午", "节假日", "晚间 (19:00-21:00)"]
+        )
+        budget = st.selectbox("预算范围", ["200-300元/课时", "300-400元/课时", "400元以上/课时"])
+        
+        submitted = st.form_submit_button("提交注册")
+        
+        if submitted:
+            if not all([parent_name, parent_phone, student_name, school]):
+                st.error("请填写所有必填信息（带*号）")
+            else:
+                parent_data = {
+                    "parent_name": parent_name,
+                    "parent_phone": parent_phone,
+                    "parent_gender": parent_gender,
+                    "parent_age": parent_age,
+                    "parent_email": parent_email,
+                    "student_name": student_name,
+                    "student_gender": student_gender,
+                    "student_age": student_age,
+                    "student_grade": student_grade,
+                    "district": district,
+                    "school": school,
+                    "sports_interest": ",".join(sports_interest),
+                    "weak_sports": ",".join(weak_sports),
+                    "training_goal": training_goal,
+                    "preferred_time": ",".join(preferred_time),
+                    "budget": budget
+                }
+                
+                try:
+                    response = supabase.table('parents').insert(parent_data).execute()
+                    st.success("✅ 注册成功！我们正在为您匹配合适的教练")
+                    st.balloons()
+                except Exception as e:
+                    st.error(f"❌ 注册失败: {e}")
 
 def show_match(supabase):
-    # ... 匹配教练代码（保持不变） ...
+    """匹配教练 - 从 Supabase 读取真实数据"""
     st.markdown("### 🔍 匹配教练")
-    # ... 完整代码 ...
+    
+    if supabase is None:
+        st.error("⚠️ 数据库未连接，请配置环境变量")
+        return
+    
+    # 搜索筛选条件
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        sport_filter = st.selectbox("项目", ["全部", "800米", "1000米", "立定跳远", "引体向上", "仰卧起坐", "跳绳"])
+    with col2:
+        level_filter = st.selectbox("教练等级", ["全部", "金牌", "银牌", "铜牌"])
+    with col3:
+        district_filter = st.selectbox("区域", ["全部", "越秀区", "海珠区", "荔湾区", "天河区", "白云区"])
+    
+    # 构建查询
+    try:
+        query = supabase.table('coaches').select('*').eq('status', '已通过')
+        
+        # 应用筛选
+        if level_filter != "全部":
+            query = query.eq('level', level_filter)
+        
+        # 获取数据
+        response = query.execute()
+        coaches = response.data
+        
+        # 按项目筛选（在应用层过滤）
+        if sport_filter != "全部":
+            coaches = [c for c in coaches if sport_filter in c.get('specialty', '')]
+        
+        st.markdown("---")
+        st.markdown(f"### 📋 推荐教练 ({len(coaches)}位)")
+        
+        if coaches:
+            for coach in coaches:
+                with st.container():
+                    level_class = "gold" if coach['level'] == "金牌" else "silver" if coach['level'] == "银牌" else "bronze"
+                    rating_display = f"⭐ {coach.get('rating', 0):.1f}" if coach.get('rating', 0) > 0 else "🆕 新教练"
+                    
+                    st.markdown(f"""
+                    <div class='coach-card'>
+                        <b>{coach['name']}</b> 
+                        <span class='price-tag-{level_class}'>{coach['level']}</span>
+                        {rating_display}
+                        <br>
+                        💰 {coach['price']}元/课时
+                        <br>
+                        🏃 擅长: {coach.get('specialty', '未填写')}
+                        <br>
+                        📝 {coach.get('bio', '')[:100]}{'...' if len(coach.get('bio', '')) > 100 else ''}
+                        <br>
+                        📅 可授课: {coach.get('available_times', '未填写')}
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if st.button(f"📅 预约 {coach['name']}", key=f"book_{coach['id']}"):
+                        st.info(f"正在预约 {coach['name']}，请等待确认...")
+        else:
+            st.info("😅 暂无符合条件的教练，请调整筛选条件")
+            
+    except Exception as e:
+        st.error(f"❌ 加载教练数据失败: {e}")
+        st.info("💡 提示: 请确保已连接 Supabase 并添加了教练数据")
 
 def show_profile(supabase):
+    """个人中心 - 包含登录功能"""
     st.markdown("### 👤 个人中心")
-    st.info("个人中心开发中...")
+    
+    # 检查登录状态
+    if is_logged_in():
+        # 已登录状态
+        st.success(f"✅ 已登录: {st.session_state.username}")
+        st.info(f"角色: {'管理员' if is_admin() else '普通用户'}")
+        
+        if st.button("🚪 登出"):
+            logout()
+            st.rerun()
+        
+        # 显示用户信息
+        st.markdown("---")
+        st.markdown("#### 📋 我的信息")
+        st.info("个人中心功能开发中...")
+        
+    else:
+        # 未登录状态 - 显示登录表单
+        st.info("🔐 请登录以访问更多功能")
+        
+        with st.form("login_form"):
+            st.markdown("#### 管理员登录")
+            username = st.text_input("用户名", placeholder="请输入用户名")
+            password = st.text_input("密码", type="password", placeholder="请输入密码")
+            
+            submitted = st.form_submit_button("登录", use_container_width=True)
+            
+            if submitted:
+                if username and password:
+                    if supabase:
+                        # 查询用户
+                        try:
+                            hashed = hashlib.sha256(password.encode()).hexdigest()
+                            
+                            response = supabase.table('users').select('*').eq('username', username).execute()
+                            users = response.data
+                            
+                            if users and users[0]['password_hash'] == hashed:
+                                user = users[0]
+                                st.session_state.logged_in = True
+                                st.session_state.user_role = user['role']
+                                st.session_state.user_id = user['id']
+                                st.session_state.username = user['username']
+                                st.success("✅ 登录成功！")
+                                st.rerun()
+                            else:
+                                st.error("❌ 用户名或密码错误")
+                        except Exception as e:
+                            st.error(f"登录失败: {e}")
+                    else:
+                        st.error("⚠️ 数据库连接失败")
+                else:
+                    st.warning("请输入用户名和密码")
 
 def show_admin(supabase):
-    # ... 管理员代码（保持不变） ...
+    """管理员 - 教练审核"""
     st.markdown("### ⚙️ 管理员")
-    # ... 完整代码 ...
+    st.warning("⚠️ 仅限管理员访问")
+    
+    if supabase is None:
+        st.error("⚠️ 数据库未连接，请配置环境变量")
+        return
+    
+    tab1, tab2, tab3 = st.tabs(["教练审核", "订单管理", "数据统计"])
+    
+    with tab1:
+        st.markdown("#### 待审核教练")
+        
+        try:
+            # 获取待审核教练
+            response = supabase.table('coaches').select('*').eq('status', '待审核').execute()
+            pending_coaches = response.data
+            
+            if pending_coaches:
+                for coach in pending_coaches:
+                    with st.container():
+                        col1, col2, col3, col4 = st.columns([3, 2, 2, 1])
+                        with col1:
+                            st.write(f"**{coach['name']}**")
+                            st.caption(f"📱 {coach['phone']}")
+                        with col2:
+                            st.write(f"等级: {coach['level']}")
+                            st.write(f"价格: {coach['price']}元/课时")
+                        with col3:
+                            st.write(f"专业: {coach['major']}")
+                            st.write(f"经验: {coach['experience']}")
+                        with col4:
+                            if st.button(f"✅ 通过", key=f"approve_{coach['id']}"):
+                                try:
+                                    supabase.table('coaches').update({'status': '已通过'}).eq('id', coach['id']).execute()
+                                    st.success(f"✅ {coach['name']} 已通过审核")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"操作失败: {e}")
+                            
+                            if st.button(f"❌ 拒绝", key=f"reject_{coach['id']}"):
+                                try:
+                                    supabase.table('coaches').update({'status': '已拒绝'}).eq('id', coach['id']).execute()
+                                    st.success(f"❌ {coach['name']} 已拒绝")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"操作失败: {e}")
+                        st.markdown("---")
+            else:
+                st.info("✅ 暂无待审核教练")
+                
+        except Exception as e:
+            st.error(f"加载数据失败: {e}")
 
 if __name__ == "__main__":
     main()
