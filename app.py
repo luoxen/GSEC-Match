@@ -153,51 +153,46 @@ def main():
     # 副标题居中
     st.markdown("<h3 style='text-align: center;'>广州中考体育教练精准匹配平台</h3>", unsafe_allow_html=True)
     
-    # 侧边栏
-    st.sidebar.markdown(f"""
-    <div style="text-align: center; padding: 10px;">
-        {logo_html}
-        <br>
-        <span style="font-size: 1.2rem; font-weight: bold; color: #1f77b4;">广东省体质健康管理学会</span>
-    </div>
-    """, unsafe_allow_html=True)
-    st.sidebar.markdown("---")
+    # 侧边栏 - 使用 with 语句确保所有内容在侧边栏内
+    with st.sidebar:
+        st.markdown(f"""
+        <div style="text-align: center; padding: 10px;">
+            {logo_html}
+            <br>
+            <span style="font-size: 1.2rem; font-weight: bold; color: #1f77b4;">广东省体质健康管理学会</span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown("---")
+        
+        # ========== 权限控制 ==========
+        if is_admin():
+            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心", "⚙️ 管理员"]
+        else:
+            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心"]
+        
+        # ========== 登录状态显示 ==========
+        st.markdown("---")
+        if is_logged_in():
+            st.success(f"✅ 已登录: {st.session_state.username}")
+            if st.button("🚪 登出", use_container_width=True):
+                logout()
+                st.rerun()
+        else:
+            st.info("🔐 管理员登录")
+            if st.button("📱 点击登录", use_container_width=True):
+                st.query_params["page"] = "个人中心"
+                st.rerun()
+            st.caption("💡 点击上方按钮进入登录页面")
+        
+        st.markdown("---")
+        
+        # ========== 菜单选择 ==========
+        if st.query_params.get("page") == "个人中心":
+            choice = "👤 个人中心"
+        else:
+            choice = st.radio("导航菜单", menu)
     
-    # ========== 权限控制 ==========
-    # 根据用户角色显示不同菜单
-    if is_admin():
-        # 管理员：显示所有菜单
-        menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心", "⚙️ 管理员"]
-    else:
-        # 普通用户：不显示管理员菜单
-        menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心"]
-    
-    # ========== 登录状态显示（带可点击的登录按钮） ==========
-    st.sidebar.markdown("---")
-    if is_logged_in():
-        st.sidebar.success(f"✅ 已登录: {st.session_state.username}")
-        if st.sidebar.button("🚪 登出", use_container_width=True):
-            logout()
-            st.rerun()
-    else:
-        # 显示可点击的登录按钮 - 改为"管理员登录"
-        st.sidebar.info("🔐 管理员登录")
-        # 使用 query_params 传递参数实现跳转
-        if st.sidebar.button("📱 点击登录", use_container_width=True):
-            st.query_params["page"] = "个人中心"
-            st.rerun()
-        st.sidebar.caption("💡 点击上方按钮进入登录页面")
-    
-    st.sidebar.markdown("---")
-    
-    # ========== 检查是否有页面跳转参数 ==========
-    # 如果 URL 参数中有 page=个人中心，则自动选择个人中心
-    if st.query_params.get("page") == "个人中心":
-        choice = "👤 个人中心"
-    else:
-        choice = st.sidebar.radio("导航菜单", menu)
-    
-    # 页面路由
+    # ========== 页面路由 ==========
     if choice == "🏠 首页":
         show_home()
     elif choice == "📝 教练注册":
@@ -209,7 +204,6 @@ def main():
     elif choice == "👤 个人中心":
         show_profile(supabase)
     elif choice == "⚙️ 管理员":
-        # 管理员页面需要登录验证
         if is_admin():
             show_admin(supabase)
         else:
@@ -305,7 +299,6 @@ def show_coach_register(supabase):
             if not all([name, phone, major, school]):
                 st.error("请填写所有必填信息（带*号）")
             else:
-                # 提取等级和价格
                 level_name = level.split()[0].replace("🥉", "").replace("🥈", "").replace("🥇", "").strip()
                 price = int(level.split("(")[1].split("元")[0])
                 
@@ -424,7 +417,6 @@ def show_match(supabase):
         st.error("⚠️ 数据库未连接，请配置环境变量")
         return
     
-    # 搜索筛选条件
     col1, col2, col3 = st.columns(3)
     with col1:
         sport_filter = st.selectbox("项目", ["全部", "800米", "1000米", "立定跳远", "引体向上", "仰卧起坐", "跳绳"])
@@ -433,19 +425,15 @@ def show_match(supabase):
     with col3:
         district_filter = st.selectbox("区域", ["全部", "越秀区", "海珠区", "荔湾区", "天河区", "白云区"])
     
-    # 构建查询
     try:
         query = supabase.table('coaches').select('*').eq('status', '已通过')
         
-        # 应用筛选
         if level_filter != "全部":
             query = query.eq('level', level_filter)
         
-        # 获取数据
         response = query.execute()
         coaches = response.data
         
-        # 按项目筛选（在应用层过滤）
         if sport_filter != "全部":
             coaches = [c for c in coaches if sport_filter in c.get('specialty', '')]
         
@@ -487,9 +475,7 @@ def show_profile(supabase):
     """个人中心 - 包含登录功能"""
     st.markdown("### 👤 个人中心")
     
-    # 检查登录状态
     if is_logged_in():
-        # 已登录状态
         st.success(f"✅ 已登录: {st.session_state.username}")
         st.info(f"角色: {'管理员' if is_admin() else '普通用户'}")
         
@@ -497,13 +483,11 @@ def show_profile(supabase):
             logout()
             st.rerun()
         
-        # 显示用户信息
         st.markdown("---")
         st.markdown("#### 📋 我的信息")
         st.info("个人中心功能开发中...")
         
     else:
-        # 未登录状态 - 显示登录表单
         st.info("🔐 请登录以访问更多功能")
         
         with st.form("login_form"):
@@ -516,10 +500,8 @@ def show_profile(supabase):
             if submitted:
                 if username and password:
                     if supabase:
-                        # 查询用户
                         try:
                             hashed = hashlib.sha256(password.encode()).hexdigest()
-                            
                             response = supabase.table('users').select('*').eq('username', username).execute()
                             users = response.data
                             
@@ -555,7 +537,6 @@ def show_admin(supabase):
         st.markdown("#### 待审核教练")
         
         try:
-            # 获取待审核教练
             response = supabase.table('coaches').select('*').eq('status', '待审核').execute()
             pending_coaches = response.data
             
