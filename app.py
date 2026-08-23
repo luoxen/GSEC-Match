@@ -112,13 +112,13 @@ def get_logo_html():
         return '<span style="font-size:40px; vertical-align:middle; margin-right:10px;">🏛️</span>'
 
 def show_login():
-    """登录界面"""
+    """管理员登录界面"""
     st.markdown("### 🔐 管理员登录")
     
     with st.container():
         st.markdown('<div class="login-box">', unsafe_allow_html=True)
-        with st.form("login_form"):
-            username = st.text_input("用户名", placeholder="请输入用户名")
+        with st.form("admin_login_form"):
+            username = st.text_input("管理员用户名", placeholder="请输入管理员用户名")
             password = st.text_input("密码", type="password", placeholder="请输入密码")
             submitted = st.form_submit_button("登录", use_container_width=True)
             
@@ -168,9 +168,11 @@ def main():
         
         # ========== 菜单定义 ==========
         if is_admin():
-            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心", "⚙️ 管理员"]
+            # 管理员：显示所有菜单（包含管理员）
+            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "⚙️ 管理员"]
         else:
-            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心"]
+            # 普通用户：不显示管理员菜单
+            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练"]
         
         # ========== 登录状态显示 ==========
         if is_logged_in():
@@ -179,17 +181,16 @@ def main():
                 logout()
                 st.rerun()
         else:
-            st.info("🔐 管理员登录")
-            if st.button("📱 点击登录", use_container_width=True):
-                st.query_params["page"] = "个人中心"
+            if st.button("🔐 管理员登录", use_container_width=True):
+                st.query_params["page"] = "管理员"
                 st.rerun()
-            st.caption("💡 点击上方按钮进入登录页面")
+            st.caption("💡 管理员请点击上方按钮登录")
         
         st.markdown("---")
         
         # ========== 菜单选择 ==========
-        if st.query_params.get("page") == "个人中心":
-            choice = "👤 个人中心"
+        if st.query_params.get("page") == "管理员":
+            choice = "⚙️ 管理员"
         else:
             choice = st.selectbox(
                 "📋 导航菜单",
@@ -207,8 +208,6 @@ def main():
         show_parent_register(supabase)
     elif choice == "🔍 匹配教练":
         show_match(supabase)
-    elif choice == "👤 个人中心":
-        show_profile(supabase)
     elif choice == "⚙️ 管理员":
         if is_admin():
             show_admin(supabase)
@@ -416,7 +415,7 @@ def show_parent_register(supabase):
                     st.error(f"❌ 注册失败: {e}")
 
 def show_match(supabase):
-    """匹配教练 - 从 Supabase 读取真实数据"""
+    """匹配教练 - 从 Supabase 读取真实数据，公开访问"""
     st.markdown("### 🔍 匹配教练")
     
     if supabase is None:
@@ -476,57 +475,6 @@ def show_match(supabase):
     except Exception as e:
         st.error(f"❌ 加载教练数据失败: {e}")
         st.info("💡 提示: 请确保已连接 Supabase 并添加了教练数据")
-
-def show_profile(supabase):
-    """个人中心 - 包含登录功能"""
-    st.markdown("### 👤 个人中心")
-    
-    if is_logged_in():
-        st.success(f"✅ 已登录: {st.session_state.username}")
-        st.info(f"角色: {'管理员' if is_admin() else '普通用户'}")
-        
-        if st.button("🚪 登出"):
-            logout()
-            st.rerun()
-        
-        st.markdown("---")
-        st.markdown("#### 📋 我的信息")
-        st.info("个人中心功能开发中...")
-        
-    else:
-        st.info("🔐 请登录以访问更多功能")
-        
-        with st.form("login_form"):
-            st.markdown("#### 管理员登录")
-            username = st.text_input("用户名", placeholder="请输入用户名")
-            password = st.text_input("密码", type="password", placeholder="请输入密码")
-            
-            submitted = st.form_submit_button("登录", use_container_width=True)
-            
-            if submitted:
-                if username and password:
-                    if supabase:
-                        try:
-                            hashed = hashlib.sha256(password.encode()).hexdigest()
-                            response = supabase.table('users').select('*').eq('username', username).execute()
-                            users = response.data
-                            
-                            if users and users[0]['password_hash'] == hashed:
-                                user = users[0]
-                                st.session_state.logged_in = True
-                                st.session_state.user_role = user['role']
-                                st.session_state.user_id = user['id']
-                                st.session_state.username = user['username']
-                                st.success("✅ 登录成功！")
-                                st.rerun()
-                            else:
-                                st.error("❌ 用户名或密码错误")
-                        except Exception as e:
-                            st.error(f"登录失败: {e}")
-                    else:
-                        st.error("⚠️ 数据库连接失败")
-                else:
-                    st.warning("请输入用户名和密码")
 
 def show_admin(supabase):
     """管理员 - 教练审核 + 教练管理 + 家长管理"""
@@ -593,14 +541,11 @@ def show_admin(supabase):
             coaches = response.data
             
             if coaches:
-                # 转换数据为 DataFrame
                 df = pd.DataFrame(coaches)
                 
-                # 选择显示的列
                 display_columns = ['name', 'phone', 'level', 'price', 'status', 'created_at']
                 available_columns = [col for col in display_columns if col in df.columns]
                 
-                # 重命名列
                 rename_map = {
                     'name': '姓名',
                     'phone': '手机号',
@@ -611,7 +556,6 @@ def show_admin(supabase):
                 }
                 df_display = df[available_columns].rename(columns=rename_map)
                 
-                # 显示
                 st.dataframe(df_display, use_container_width=True)
                 st.caption(f"共 {len(coaches)} 位教练")
             else:
@@ -629,14 +573,11 @@ def show_admin(supabase):
             parents = response.data
             
             if parents:
-                # 转换数据为 DataFrame
                 df = pd.DataFrame(parents)
                 
-                # 选择显示的列
                 display_columns = ['parent_name', 'parent_phone', 'student_name', 'student_grade', 'district', 'school', 'created_at']
                 available_columns = [col for col in display_columns if col in df.columns]
                 
-                # 重命名列
                 rename_map = {
                     'parent_name': '家长姓名',
                     'parent_phone': '家长手机',
@@ -648,7 +589,6 @@ def show_admin(supabase):
                 }
                 df_display = df[available_columns].rename(columns=rename_map)
                 
-                # 显示
                 st.dataframe(df_display, use_container_width=True)
                 st.caption(f"共 {len(parents)} 位家长")
             else:
@@ -662,7 +602,6 @@ def show_admin(supabase):
         st.markdown("#### 数据统计")
         
         try:
-            # 统计各表数据量
             coaches_count = supabase.table('coaches').select('*', count='exact').execute()
             parents_count = supabase.table('parents').select('*', count='exact').execute()
             matches_count = supabase.table('matches').select('*', count='exact').execute()
@@ -682,7 +621,6 @@ def show_admin(supabase):
             df_stats = pd.DataFrame(stats)
             st.dataframe(df_stats, use_container_width=True)
             
-            # 按等级统计教练
             level_response = supabase.table('coaches').select('level', 'status').execute()
             if level_response.data:
                 df_level = pd.DataFrame(level_response.data)
