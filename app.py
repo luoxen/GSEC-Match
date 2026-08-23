@@ -212,18 +212,20 @@ def main():
             menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练"]
         
         # ========== 登录状态显示 ==========
+        st.sidebar.markdown("---")
         if is_logged_in():
-            st.success(f"✅ 已登录: {st.session_state.username}")
-            if st.button("🚪 登出", use_container_width=True):
+            st.sidebar.success(f"✅ 已登录: {st.session_state.username}")
+            if st.sidebar.button("🚪 登出", use_container_width=True):
                 logout()
                 st.rerun()
         else:
-            # 先显示按钮
-            if st.button("🔐 管理员登录", use_container_width=True):
-                st.query_params["page"] = "管理员"
-                st.rerun()
-            # 再显示提示
-            st.info("💡 点击上方按钮登录")
+            # 使用 columns 布局确保按钮显示
+            col1, col2 = st.sidebar.columns([1, 3])
+            with col2:
+                if st.button("🔐 管理员登录", use_container_width=True, key="admin_login_btn"):
+                    st.query_params["page"] = "管理员"
+                    st.rerun()
+            st.sidebar.info("💡 点击上方按钮登录")
         
         st.markdown("---")
         
