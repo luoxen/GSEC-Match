@@ -8,6 +8,7 @@ from PIL import Image
 import os
 import base64
 import hashlib
+import pandas as pd
 from supabase import create_client
 from dotenv import load_dotenv
 from src.utils.auth import init_session_state, login, logout, is_admin, is_logged_in
@@ -472,7 +473,7 @@ def show_match(supabase):
         st.info("💡 提示: 请确保已连接 Supabase 并添加了教练数据")
 
 def show_profile(supabase):
-    """个人中心 - 包含登录功能（带调试信息）"""
+    """个人中心 - 包含登录功能"""
     st.markdown("### 👤 个人中心")
     
     if is_logged_in():
@@ -501,23 +502,9 @@ def show_profile(supabase):
                 if username and password:
                     if supabase:
                         try:
-                            # 计算密码哈希
                             hashed = hashlib.sha256(password.encode()).hexdigest()
-                            
-                            # 调试信息
-                            st.write(f"🔍 输入密码: {password}")
-                            st.write(f"🔍 计算哈希: {hashed}")
-                            
-                            # 查询用户
                             response = supabase.table('users').select('*').eq('username', username).execute()
                             users = response.data
-                            
-                            # 调试信息
-                            st.write(f"🔍 查询结果: {users}")
-                            
-                            if users:
-                                st.write(f"🔍 数据库哈希: {users[0]['password_hash']}")
-                                st.write(f"🔍 是否匹配: {users[0]['password_hash'] == hashed}")
                             
                             if users and users[0]['password_hash'] == hashed:
                                 user = users[0]
@@ -531,14 +518,13 @@ def show_profile(supabase):
                                 st.error("❌ 用户名或密码错误")
                         except Exception as e:
                             st.error(f"登录失败: {e}")
-                            st.write(f"错误详情: {e}")
                     else:
                         st.error("⚠️ 数据库连接失败")
                 else:
                     st.warning("请输入用户名和密码")
 
 def show_admin(supabase):
-    """管理员 - 教练审核"""
+    """管理员 - 教练审核 + 教练管理 + 家长管理"""
     st.markdown("### ⚙️ 管理员")
     st.warning("⚠️ 仅限管理员访问")
     
@@ -546,8 +532,10 @@ def show_admin(supabase):
         st.error("⚠️ 数据库未连接，请配置环境变量")
         return
     
-    tab1, tab2, tab3 = st.tabs(["教练审核", "订单管理", "数据统计"])
+    # 添加更多标签页
+    tab1, tab2, tab3, tab4 = st.tabs(["📋 教练审核", "👨‍🏫 教练管理", "👨‍👩‍👧 家长管理", "📊 数据统计"])
     
+    # ========== Tab 1: 教练审核 ==========
     with tab1:
         st.markdown("#### 待审核教练")
         
@@ -590,6 +578,118 @@ def show_admin(supabase):
                 
         except Exception as e:
             st.error(f"加载数据失败: {e}")
+    
+    # ========== Tab 2: 教练管理 ==========
+    with tab2:
+        st.markdown("#### 所有教练")
+        
+        try:
+            response = supabase.table('coaches').select('*').execute()
+            coaches = response.data
+            
+            if coaches:
+                # 转换数据为 DataFrame
+                df = pd.DataFrame(coaches)
+                
+                # 选择显示的列
+                display_columns = ['name', 'phone', 'level', 'price', 'status', 'created_at']
+                available_columns = [col for col in display_columns if col in df.columns]
+                
+                # 重命名列
+                rename_map = {
+                    'name': '姓名',
+                    'phone': '手机号',
+                    'level': '等级',
+                    'price': '价格(元)',
+                    'status': '状态',
+                    'created_at': '注册时间'
+                }
+                df_display = df[available_columns].rename(columns=rename_map)
+                
+                # 显示
+                st.dataframe(df_display, use_container_width=True)
+                st.caption(f"共 {len(coaches)} 位教练")
+            else:
+                st.info("暂无教练数据")
+                
+        except Exception as e:
+            st.error(f"加载教练数据失败: {e}")
+    
+    # ========== Tab 3: 家长管理 ==========
+    with tab3:
+        st.markdown("#### 所有家长")
+        
+        try:
+            response = supabase.table('parents').select('*').execute()
+            parents = response.data
+            
+            if parents:
+                # 转换数据为 DataFrame
+                df = pd.DataFrame(parents)
+                
+                # 选择显示的列
+                display_columns = ['parent_name', 'parent_phone', 'student_name', 'student_grade', 'district', 'school', 'created_at']
+                available_columns = [col for col in display_columns if col in df.columns]
+                
+                # 重命名列
+                rename_map = {
+                    'parent_name': '家长姓名',
+                    'parent_phone': '家长手机',
+                    'student_name': '孩子姓名',
+                    'student_grade': '年级',
+                    'district': '所在区',
+                    'school': '学校',
+                    'created_at': '注册时间'
+                }
+                df_display = df[available_columns].rename(columns=rename_map)
+                
+                # 显示
+                st.dataframe(df_display, use_container_width=True)
+                st.caption(f"共 {len(parents)} 位家长")
+            else:
+                st.info("暂无家长数据")
+                
+        except Exception as e:
+            st.error(f"加载家长数据失败: {e}")
+    
+    # ========== Tab 4: 数据统计 ==========
+    with tab4:
+        st.markdown("#### 数据统计")
+        
+        try:
+            # 统计各表数据量
+            coaches_count = supabase.table('coaches').select('*', count='exact').execute()
+            parents_count = supabase.table('parents').select('*', count='exact').execute()
+            matches_count = supabase.table('matches').select('*', count='exact').execute()
+            payments_count = supabase.table('payments').select('*', count='exact').execute()
+            reviews_count = supabase.table('reviews').select('*', count='exact').execute()
+            
+            stats = {
+                '表名': ['教练', '家长', '匹配记录', '支付记录', '评价'],
+                '数量': [
+                    coaches_count.count,
+                    parents_count.count,
+                    matches_count.count,
+                    payments_count.count,
+                    reviews_count.count
+                ]
+            }
+            df_stats = pd.DataFrame(stats)
+            st.dataframe(df_stats, use_container_width=True)
+            
+            # 按等级统计教练
+            level_response = supabase.table('coaches').select('level', 'status').execute()
+            if level_response.data:
+                df_level = pd.DataFrame(level_response.data)
+                if 'level' in df_level.columns:
+                    level_counts = df_level['level'].value_counts().reset_index()
+                    level_counts.columns = ['等级', '数量']
+                    st.markdown("---")
+                    st.markdown("#### 教练等级分布")
+                    st.dataframe(level_counts, use_container_width=True)
+                
+        except Exception as e:
+            st.error(f"加载统计数据失败: {e}")
 
 if __name__ == "__main__":
     main()
