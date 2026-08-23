@@ -154,44 +154,44 @@ def main():
     # 副标题居中
     st.markdown("<h3 style='text-align: center;'>广州中考体育教练精准匹配平台</h3>", unsafe_allow_html=True)
     
-    # 侧边栏 - 使用 with 语句确保所有内容在侧边栏内
-    with st.sidebar:
-        st.markdown(f"""
-        <div style="text-align: center; padding: 10px;">
-            {logo_html}
-            <br>
-            <span style="font-size: 1.2rem; font-weight: bold; color: #1f77b4;">广东省体质健康管理学会</span>
-        </div>
-        """, unsafe_allow_html=True)
-        st.markdown("---")
-        
-        # ========== 权限控制 ==========
-        if is_admin():
-            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心", "⚙️ 管理员"]
-        else:
-            menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心"]
-        
-        # ========== 登录状态显示 ==========
-        st.markdown("---")
-        if is_logged_in():
-            st.success(f"✅ 已登录: {st.session_state.username}")
-            if st.button("🚪 登出", use_container_width=True):
-                logout()
-                st.rerun()
-        else:
-            st.info("🔐 管理员登录")
-            if st.button("📱 点击登录", use_container_width=True):
-                st.query_params["page"] = "个人中心"
-                st.rerun()
-            st.caption("💡 点击上方按钮进入登录页面")
-        
-        st.markdown("---")
-        
-        # ========== 菜单选择 ==========
-        if st.query_params.get("page") == "个人中心":
-            choice = "👤 个人中心"
-        else:
-            choice = st.radio("导航菜单", menu)
+    # ========== 侧边栏 ==========
+    # 会标
+    st.sidebar.markdown(f"""
+    <div style="text-align: center; padding: 10px;">
+        {logo_html}
+        <br>
+        <span style="font-size: 1.2rem; font-weight: bold; color: #1f77b4;">广东省体质健康管理学会</span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.sidebar.markdown("---")
+    
+    # ========== 菜单定义 ==========
+    if is_admin():
+        menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心", "⚙️ 管理员"]
+    else:
+        menu = ["🏠 首页", "📝 教练注册", "👨‍👩‍👧 家长注册", "🔍 匹配教练", "👤 个人中心"]
+    
+    # ========== 登录状态显示 ==========
+    if is_logged_in():
+        st.sidebar.success(f"✅ 已登录: {st.session_state.username}")
+        if st.sidebar.button("🚪 登出", use_container_width=True):
+            logout()
+            st.rerun()
+    else:
+        st.sidebar.info("🔐 管理员登录")
+        if st.sidebar.button("📱 点击登录", use_container_width=True):
+            st.query_params["page"] = "个人中心"
+            st.rerun()
+        st.sidebar.caption("💡 点击上方按钮进入登录页面")
+    
+    st.sidebar.markdown("---")
+    
+    # ========== 菜单选择 ==========
+    # 使用 st.sidebar.radio 在侧边栏显示菜单
+    if st.query_params.get("page") == "个人中心":
+        choice = "👤 个人中心"
+    else:
+        choice = st.sidebar.radio("导航菜单", menu)
     
     # ========== 页面路由 ==========
     if choice == "🏠 首页":
